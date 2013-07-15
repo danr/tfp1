@@ -25,6 +25,9 @@ import Data.Generics.Geniplate
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
+import Data.Set (Set)
+import qualified Data.Set as S
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Clauses.
@@ -176,6 +179,18 @@ fmSubst x = tr_fm . tmSubst x
   where
     tr_fm :: (Term a -> Term a) -> Formula a -> Formula a
     tr_fm = $(genTransformBi 'tr_fm)
+
+clsDeps :: forall a . Ord a => [Clause a] -> (Set a,Set a)
+clsDeps cls =
+    (S.fromList [ tc | TyCon tc _ <- univ_ty cls ]
+    ,S.fromList [ f | Apply f _ _ <- univ_tm cls ]
+    )
+  where
+    univ_tm :: [Clause a] -> [Term a]
+    univ_tm = $(genUniverseBi 'univ_tm)
+
+    univ_ty :: [Clause a] -> [Type a]
+    univ_ty = $(genUniverseBi 'univ_ty)
 
 {-
 

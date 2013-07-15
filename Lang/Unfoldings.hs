@@ -1,4 +1,5 @@
-module Lang.Unfoldings (fixUnfoldings,fixId) where
+{-# LANGUAGE NamedFieldPuns #-}
+module Lang.Unfoldings (unfolding,maybeUnfolding,fixUnfoldings,fixId) where
 
 import qualified Data.Map as M
 
@@ -10,6 +11,21 @@ import Control.Monad.Reader
 import CoreSyn
 import CoreUnfold
 import Id
+
+import Data.Maybe
+
+-- | The unfolding of an Id
+unfolding :: Id -> CoreExpr
+unfolding  = fromMaybe (error err) . maybeUnfolding
+  where
+    err = "No unfolding for identifier!" ++
+          "(possible solution: Remove *.hi files and try again)"
+
+-- | Maybe the unfolding of an Id
+maybeUnfolding :: Id -> Maybe CoreExpr
+maybeUnfolding v = case realIdUnfolding v of
+    CoreUnfolding{uf_tmpl} -> Just uf_tmpl
+    _                      -> Nothing
 
 -- | Fixes identifiers according to some core binds
 fixId :: [CoreBind] -> Id -> Id

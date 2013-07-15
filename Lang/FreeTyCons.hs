@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module Lang.FreeTyCons (bindsTyCons) where
+module Lang.FreeTyCons (bindsTyCons,exprsTyCons) where
 
 import CoreSyn
 import CoreUtils (exprType)
@@ -11,6 +11,9 @@ import Var
 
 import Data.Set (Set)
 import qualified Data.Set as S
+
+exprsTyCons :: [CoreExpr] -> [TyCon]
+exprsTyCons = S.toList . S.unions . map exprTyCons
 
 bindsTyCons :: [CoreBind] -> [TyCon]
 bindsTyCons = S.toList . S.unions . map bindTyCons

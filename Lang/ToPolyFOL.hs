@@ -61,9 +61,9 @@ appAxioms =
 
 -- | Makes axioms for a data type
 --   TODO : The pointers for the different constructors
-trDatatype :: Datatype v -> [Clause (Poly v)]
+trDatatype :: Datatype v -> ([Clause (Poly v)],[(v,[Clause (Poly v)])])
 trDatatype (Datatype tc0 tvs0 dcs0) =
-    sort_decl : ty_decls ++ domain : inj ++ discrim ++ ptrs
+    (sort_decl : ty_decls ++ domain : inj ++ discrim,ptrs)
   where
     tc    = Id tc0
     tvs   = map Id tvs0
@@ -116,7 +116,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
         ]
 
     -- ptr axioms
-    ptrs = concat [ ptrAxiom dc tvs args tc_ty | (dc,args) <- dcs ]
+    ptrs = [ (dc,ptrAxiom dc tvs args tc_ty) | (dc,args) <- dcs ]
 
 ptrAxiom :: v -> [Poly v] -> [P.Type (Poly v)] -> P.Type (Poly v) -> [Clause (Poly v)]
 ptrAxiom _ _ [] _ = []
