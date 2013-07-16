@@ -14,12 +14,14 @@ import Id
 
 import Data.Maybe
 
+import Lang.Utils
+
 -- | The unfolding of an Id
 unfolding :: Id -> CoreExpr
-unfolding  = fromMaybe (error err) . maybeUnfolding
+unfolding i  = fromMaybe (error err) . maybeUnfolding $ i
   where
-    err = "No unfolding for identifier!" ++
-          "(possible solution: Remove *.hi files and try again)"
+    err = "No unfolding for identifier " ++ showOutputable i ++
+          " (possible solution: Remove *.hi files and try again)"
 
 -- | Maybe the unfolding of an Id
 maybeUnfolding :: Id -> Maybe CoreExpr

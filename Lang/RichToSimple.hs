@@ -49,10 +49,11 @@ emit :: S.Function (Var v) -> RTS v ()
 emit = tell . (:[])
 
 runRTS :: Ord v => RTS v a -> (a,[S.Function (Var v)])
-runRTS = runRTSWithScope []
+runRTS = runRTSWithScope [] []
 
-runRTSWithScope :: Ord v => [Var v] -> RTS v a -> (a,[S.Function (Var v)])
-runRTSWithScope sc m = evalRWS m (Env (makeScope sc,[])) 0
+runRTSWithScope :: Ord v =>
+    [Loc (Rename v)] -> [Var v] -> RTS v a -> (a,[S.Function (Var v)])
+runRTSWithScope loc sc m = evalRWS m (Env (makeScope sc,map star loc)) 0
 
 getLocs :: forall v . RTS v [Loc (Rename v)]
 getLocs = do

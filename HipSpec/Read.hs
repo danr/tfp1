@@ -118,7 +118,7 @@ execute file = do
             props =
                 [ i
                 | (_,AnId i) <- M.toList named_things
-                , isPropType i
+                , varWithPropType i
 --                , null only' || varString i `elem` only'
                 ]
 

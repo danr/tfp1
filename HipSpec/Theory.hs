@@ -68,28 +68,6 @@ calcDeps s = s { deps = S.unions [datatypes,app,ptrs,defs] }
     defs = S.fromList . map Definition $
         [ x | Id x <- fns ] ++ [ x | Proj x _ <- fns ]
 
--- | Printing names
-polyname :: LogicId -> String
-polyname x0 = case x0 of
-    Id x     -> ppRename x
-    Ptr x    -> ppRename x ++ "_ptr"
-    App      -> "app"
-    TyFn     -> "fn"
-    Proj x i -> "proj_" ++ show i ++ "_" ++ ppRename x
-    QVar i   -> 'x':show i
-
-ppName :: Name -> String
-ppName nm = getOccString nm ++ '_':showOutputable (getUnique nm)
-
-ppRename :: Rename Name -> String
-ppRename (Old nm)   = ppName nm
-ppRename (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
-  where
-    loc :: Loc (Rename Name) -> String
-    loc lc = case lc of
-        CaseLoc   -> "case"
-        LamLoc    -> "lambda"
-        LetLoc nm -> ppRename nm
 
 sortClauses :: [Clause a] -> [Clause a]
 sortClauses = sortBy (comparing rank)

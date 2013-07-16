@@ -8,6 +8,7 @@ import qualified Lang.Rich as R
 import Lang.CoreToRich
 import Lang.SimplifyRich
 import Lang.RichToSimple hiding (Var)
+import qualified Lang.RichToSimple as S
 
 import Lang.Simple as S
 import qualified Lang.FunctionalFO as FO
@@ -68,6 +69,7 @@ trTyCons tcs = case mapM trTyCon tcs of
             ]
     Left err -> error $ "trTyCons: " ++ show err
 
+{-
 -- | Given an initial arity map (of constructors),
 --   translates these binds and returns the final arity map
 trBinds :: ArityMap -> [(Var,CoreExpr)] -> (ArityMap,[Subtheory])
@@ -75,20 +77,15 @@ trBinds am0 binds = (am',concat subthyss)
   where
     (amf,subthyss) = unzip (map (uncurry (trBind am')) binds)
     am' = M.unions (am0:amf)
+    -}
 
--- | Translates one bind given an arity map, and returns the arity map for this
---   subtheory
-trBind :: ArityMap -> Var -> CoreExpr -> (ArityMap,[Subtheory])
-trBind am v e = case trDefn v e of
-    Right fn -> trSimpFuns am simp_fns
-      where
-        fn' :: R.Function (Typed Name)
-        fn' = simpFun fn
-
-        simp_fns :: [S.Function (Typed (Rename Name))]
-        simp_fns = uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ fn'
-
-    Left err -> error $ "trBind: " ++ show err
+-- | Translates Var/Expr-pairs to simple functions
+toSimp :: [(Var,CoreExpr)] -> [S.Function (S.Var Name)]
+toSimp = concatMap (uncurry to_simp)
+  where
+    to_simp v e = case trDefn v e of
+        Right fn -> uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ simpFun fn
+        Left err -> error $ "toSimp: " ++ show err
 
 -- | Translates a bunch of simple functions into subtheories
 trSimpFuns :: ArityMap -> [S.Function (Typed (Rename Name))] -> (ArityMap,[Subtheory])
@@ -117,3 +114,4 @@ trSimpFuns am simp_fns = (new_arities,subthys)
         | f@FO.Function{..} <- fo_fns_zapped
         , let (fn_cls,ptr_cls) = P.trFun f
         ]
+

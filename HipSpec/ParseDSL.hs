@@ -4,37 +4,42 @@ import Var
 import Type
 import Lang.Utils
 import Data.List
+import Outputable
 
-isPropType   :: Var -> Bool
-isPropType x = typeIsProp res && not (any typeIsProp args) && not (fromPrelude x)
+varWithPropType   :: Var -> Bool
+varWithPropType x = typeIsProp (varType x) && not (fromPrelude x)
+
+propType :: Type -> Bool
+propType ty = typeIsProp res && not (any typeIsProp args)
   where
-    (args,res) = splitFunTys (varType x)
+    (_tvs,ty') = splitForAllTys ty
+    (args,res) = splitFunTys ty'
 
-typeIsProp  :: Type -> Bool
+typeIsProp  :: Outputable a => a -> Bool
 typeIsProp  = isInfixOf "HipSpec.Prelude.Prop" . showOutputable
 
-fromPrelude :: Var -> Bool
+fromPrelude :: Outputable a => a -> Bool
 fromPrelude = isInfixOf "HipSpec.Prelude" . showOutputable
 
-isMain      :: Var -> Bool
+isMain      :: Outputable a => a -> Bool
 isMain      = isInfixOf "main" . showOutputable
 
-isEquals    :: Var -> Bool
+isEquals    :: Outputable a => a -> Bool
 isEquals    = isInfixOfs [":=:","=:="] . showOutputable
 
-isGiven     :: Var -> Bool
+isGiven     :: Outputable a => a -> Bool
 isGiven     = isInfixOfs ["Given","given","==>"] . showOutputable
 
-isTotal     :: Var -> Bool
+isTotal     :: Outputable a => a -> Bool
 isTotal     = isInfixOfs ["Total","total"] . showOutputable
 
-isGivenBool :: Var -> Bool
+isGivenBool :: Outputable a => a -> Bool
 isGivenBool = isInfixOf "givenBool" . showOutputable
 
-isProveBool :: Var -> Bool
+isProveBool :: Outputable a => a -> Bool
 isProveBool = isInfixOf "proveBool" . showOutputable
 
-isOops      :: Var -> Bool
+isOops      :: Outputable a => a -> Bool
 isOops      = isInfixOfs ["Oops","oops"] . showOutputable
 
 isInfixOfs :: [String] -> String -> Bool
