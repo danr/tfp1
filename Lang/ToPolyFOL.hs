@@ -41,6 +41,8 @@ data Poly v
     -- ^ Constructor projection on the i:th coordinate
     | QVar Int
     -- ^ Local quantified variable number i
+    | Sk Int
+    -- ^ Skolemised variable, not used here but in general handy to have
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 data Env v = Env
@@ -141,8 +143,6 @@ ptrAxiom f tvs args res =
 
 diag :: [a] -> [(a,a)]
 diag xs = [ (x,y) | x:ys <- tails xs, y <- ys ]
-
-
 
 
 -- | The scope is typed to be able to write typed quantifiers
@@ -256,4 +256,10 @@ trExpr = go
 
         FO.Lit x -> return (P.Lit x)
 
+trExpr' :: Ord v => [v] -> Expr v -> Term (Poly v)
+trExpr' scope e =
+    evalState
+        (runReaderT (trExpr e)
+                    (makeScope (zip scope (repeat (error "ToPolyFOL.trExpr' type")))))
+        (error "ToPolyFOL.trExpr' Env")
 

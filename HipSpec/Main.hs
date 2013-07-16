@@ -9,9 +9,8 @@ import HipSpec.Calls
 import HipSpec.ParseDSL
 import HipSpec.Pretty
 import HipSpec.Property
-
-import Lang.PrettyRich as R
-import Text.PrettyPrint (render,text)
+import HipSpec.Plain
+import HipSpec.Trim
 
 import qualified Lang.Simple as S
 import qualified Lang.RichToSimple as S
@@ -19,13 +18,9 @@ import qualified Lang.RichToSimple as S
 import Lang.Unfoldings
 import Lang.RemoveDefault
 import Lang.Uniquify
-import Lang.Escape
 import Lang.FreeTyCons
 
 import TyCon (isAlgTyCon)
-
-import Lang.PrettyAltErgo
-import Text.PrettyPrint
 
 import System.Environment
 
@@ -35,6 +30,8 @@ import Control.Monad
 
 import Data.List (partition)
 
+import System.Process
+
 main :: IO ()
 main = do
     [file] <- getArgs
@@ -43,9 +40,9 @@ main = do
 
     us0 <- mkSplitUniqSupply 'h'
 
-    let dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
+    let not_dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
 
-        vars = filterVarSet dsl $
+        vars = filterVarSet not_dsl $
                unionVarSets (map transCalls prop_vars)
 
         (binds,_us1) = initUs us0 $ sequence
@@ -54,9 +51,10 @@ main = do
             , Just e <- [maybeUnfolding v]
             ]
 
-        tcs = filter isAlgTyCon (exprsTyCons (map snd binds))
+        tcs = filter (\ x -> isAlgTyCon x && not (typeIsProp x))
+                     (exprsTyCons (map snd binds))
 
-        (am,data_thy) = trTyCons tcs
+        (am_tcs,data_thy) = trTyCons tcs
 
         -- Now, split these into properties and non-properties
 
@@ -76,31 +74,30 @@ main = do
     putStrLn "\nDefinitions\n"
     mapM_ (putStrLn . showSimp) fns
 
-    putStrLn "\nProperties\n"
-
-    case trProperties props of
-        Right props -> mapM_ print props
-        Left err -> print err
-
-{-
-
-        (amf,binds_thy) = trBinds am binds
+    let am_fin = am_fns `combineArityMap` am_tcs
+        (am_fns,binds_thy) = trSimpFuns am_fin fns
 
         thy = appThy : data_thy ++ binds_thy
 
+        trimmer = trim thy
+
         cls = sortClauses (concatMap clauses thy)
 
-        pp_alt_ergo = render . vcat . map (ppClause (text . escape . polyname))
+    putStrLn "\nDefinitions in clauses\n"
+    putStrLn (ppAltErgo cls)
 
-    putStrLn (pp_alt_ergo cls)
+    putStrLn "\nProperties\n"
+    case trProperties props of
+        Right props' -> forM_ props' $ \ prop -> do
+            print prop
+            let pls = plain am_fin prop
+                ss = trimmer (dependencies pls)
+                goal = ppAltErgo (sortClauses (concatMap clauses (pls:ss)))
+                mlw = "/tmp/goal.mlw"
+            putStrLn goal
+            writeFile mlw goal
+            (_exc,out,err) <- readProcessWithExitCode "alt-ergo" [mlw,"-timelimit","1","-triggers-var"] ""
+            putStrLn out
+            putStrLn err
+        Left err -> print err
 
-    case trProperties amf [ (v,unfolding v) | v <- prop_vars ] of
-        Left err -> error (show err)
-        Right (_amf',ps,ss) -> do
-            putStrLn "\nProperty subtheories:"
-            putStrLn (pp_alt_ergo (sortClauses (concatMap clauses ss)))
-
-            putStrLn "\nProperties:"
-            mapM_ print ps
-
--}

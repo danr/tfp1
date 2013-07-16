@@ -7,10 +7,11 @@ prop_compose f g h = f . (g . h) =:= (f . g) . h
 
 prop_let f =
     (let twice g = f . g in twice (twice f))
-    =:= dbl f . f
-  where dbl g = g . g
+    =:= dbl (dbl f)
+  where
+    dbl g = g . f
 
-prop_bug xs =
+prop_case xs =
     (case xs of { [] -> True; _:_ -> False }) =:=
     not (case xs of { [] -> False; _:_ -> True })
 
@@ -34,3 +35,5 @@ zip _ _           = []
 
 prop_zw_map f xs ys = zipWith (curry f) xs ys =:= map f (zip xs ys)
 
+prop_const :: a -> [b] -> Prop [a]
+prop_const x xs = map (\ _ -> x) xs =:= zipWith (\ _ _ -> x) xs xs

@@ -1,7 +1,8 @@
 -- | Properties, represented with the simple language
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards #-}
 module HipSpec.Property
-    ( Literal
+    ( Literal(..)
+    , mapLiteral
     , Property(..)
     , trProperty
     , trProperties
@@ -15,9 +16,8 @@ import Lang.Simple as S
 import Lang.RichToSimple as S
 import Lang.PrettyRich as R
 
-import Text.PrettyPrint
+import Text.PrettyPrint hiding (comma)
 
-import HipSpec.Translate
 import HipSpec.ParseDSL
 import HipSpec.Theory
 import HipSpec.Pretty
@@ -27,7 +27,10 @@ import DataCon (dataConName)
 
 import Data.List (intercalate)
 
-data Literal = S.Expr (S.Var Name) :=: S.Expr (S.Var Name)
+data Literal = S.Expr TypedName' :=: S.Expr TypedName'
+
+mapLiteral :: (S.Expr TypedName' -> S.Expr TypedName') -> Literal -> Literal
+mapLiteral f (a :=: b) = f a :=: f b
 
 instance Show Literal where
     show (e1 :=: e2) = showExpr e1 ++ " = " ++ showExpr e2
@@ -35,9 +38,9 @@ instance Show Literal where
 data Property = Property
     { prop_name     :: String
     -- ^ Name (e.g. prop_rotate)
-    , prop_tvs      :: [Rename Name]
+    , prop_tvs      :: [Name']
     -- ^ Type variables
-    , prop_vars     :: [S.Var Name]
+    , prop_vars     :: [TypedName']
     -- ^ Quantified variables (typed)
     , prop_goal     :: Literal
     -- ^ Goal

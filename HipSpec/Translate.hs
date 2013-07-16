@@ -17,6 +17,7 @@ import Lang.SimpleToFO as FO
 import Lang.Deappify
 
 import qualified Lang.ToPolyFOL as P
+import qualified Lang.PolyFOL as P
 
 import Name
 import CoreSyn
@@ -69,15 +70,6 @@ trTyCons tcs = case mapM trTyCon tcs of
             ]
     Left err -> error $ "trTyCons: " ++ show err
 
-{-
--- | Given an initial arity map (of constructors),
---   translates these binds and returns the final arity map
-trBinds :: ArityMap -> [(Var,CoreExpr)] -> (ArityMap,[Subtheory])
-trBinds am0 binds = (am',concat subthyss)
-  where
-    (amf,subthyss) = unzip (map (uncurry (trBind am')) binds)
-    am' = M.unions (am0:amf)
-    -}
 
 -- | Translates Var/Expr-pairs to simple functions
 toSimp :: [(Var,CoreExpr)] -> [S.Function (S.Var Name)]
@@ -88,17 +80,17 @@ toSimp = concatMap (uncurry to_simp)
         Left err -> error $ "toSimp: " ++ show err
 
 -- | Translates a bunch of simple functions into subtheories
-trSimpFuns :: ArityMap -> [S.Function (Typed (Rename Name))] -> (ArityMap,[Subtheory])
+trSimpFuns :: ArityMap -> [S.Function TypedName'] -> (ArityMap,[Subtheory])
 trSimpFuns am simp_fns = (new_arities,subthys)
   where
-    fo_fns :: [FO.Function (Rename Name)]
+    fo_fns :: [FO.Function Name']
     fo_fns = map stfFun simp_fns
 
     new_arities :: ArityMap
     new_arities = M.fromList
         [ (fn_name,length fn_args) | FO.Function{..} <- fo_fns ]
 
-    fo_fns_zapped :: [FO.Function (Rename Name)]
+    fo_fns_zapped :: [FO.Function Name']
     fo_fns_zapped = mapM zapFn fo_fns (`M.lookup` am)
 
     subthys = concat
@@ -114,4 +106,9 @@ trSimpFuns am simp_fns = (new_arities,subthys)
         | f@FO.Function{..} <- fo_fns_zapped
         , let (fn_cls,ptr_cls) = P.trFun f
         ]
+
+trSimpExpr :: ArityMap -> [Name'] -> S.Expr TypedName' -> P.Term LogicId
+trSimpExpr am sc e = P.trExpr' sc e'
+  where
+    e' = zapExpr (runSTFWithScope sc (stfExpr e)) (`M.lookup` am)
 

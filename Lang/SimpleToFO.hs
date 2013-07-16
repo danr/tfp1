@@ -19,6 +19,9 @@ type STF v a = Reader (Scope v) a
 runSTF :: STF v a -> a
 runSTF m = runReader m emptyScope
 
+runSTFWithScope :: Ord v => [v] -> STF v a -> a
+runSTFWithScope s m = runReader m (makeScope s)
+
 stfFun :: Ord v => S.Function (Typed v) -> FO.Function v
 stfFun (S.Function (f ::: ty) as b) =
     FO.Function f tvs as' res_ty $ runSTF $

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
 -- | The Simple expression language, a subset of GHC Core
 --
 -- It is Simple because it lacks lambdas, let and only allows a cascade of
@@ -15,6 +15,7 @@ module Lang.Simple
     , apply
     , bodyType
     , exprType
+    , exprTySubst
     , module Lang.Rich
     , module Lang.Type
     , injectFn
@@ -24,6 +25,7 @@ module Lang.Simple
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.Generics.Geniplate
 
 -- Patterns are resued from the rich language
 import Lang.Rich (Pattern(..),anyRhs)
@@ -75,6 +77,14 @@ bodyType = R.exprType . injectBody
 
 exprType :: Eq a => Expr (Typed a) -> Type a
 exprType = R.exprType . injectExpr
+
+exprTySubst :: forall a . Eq a => a -> Type a -> Expr (Typed a) -> Expr (Typed a)
+exprTySubst x t = ex_ty $ \ t0 -> case t0 of
+    TyVar y | x == y -> t
+    _                -> t0
+  where
+    ex_ty :: (Type a -> Type a) -> Expr (Typed a) -> Expr (Typed a)
+    ex_ty = $(genTransformBi 'ex_ty)
 
 -- * Injectors to the Rich language (for pretty-printing, linting)
 
