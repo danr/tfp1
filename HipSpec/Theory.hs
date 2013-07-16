@@ -16,10 +16,14 @@ import Data.List (sortBy)
 import Data.Ord (comparing)
 
 import Data.Map (Map)
+import qualified Data.Map as M
 
 type LogicId = Poly (Rename Name)
 
 type ArityMap = Map (Rename Name) Int
+
+combineArityMap :: ArityMap -> ArityMap -> ArityMap
+combineArityMap = M.union
 
 data Content
     = Definition (Rename Name)
@@ -67,25 +71,25 @@ calcDeps s = s { deps = S.unions [datatypes,app,ptrs,defs] }
 -- | Printing names
 polyname :: LogicId -> String
 polyname x0 = case x0 of
-    Id x     -> name' x
-    Ptr x    -> name' x ++ "_ptr"
+    Id x     -> ppRename x
+    Ptr x    -> ppRename x ++ "_ptr"
     App      -> "app"
     TyFn     -> "fn"
-    Proj x i -> "proj_" ++ show i ++ "_" ++ name' x
+    Proj x i -> "proj_" ++ show i ++ "_" ++ ppRename x
     QVar i   -> 'x':show i
+
+ppName :: Name -> String
+ppName nm = getOccString nm ++ '_':showOutputable (getUnique nm)
+
+ppRename :: Rename Name -> String
+ppRename (Old nm)   = ppName nm
+ppRename (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
   where
-    name :: Name -> String
-    name nm = getOccString nm ++ '_':showOutputable (getUnique nm)
-
-    name' :: Rename Name -> String
-    name' (Old nm)   = name nm
-    name' (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
-
     loc :: Loc (Rename Name) -> String
     loc lc = case lc of
         CaseLoc   -> "case"
         LamLoc    -> "lambda"
-        LetLoc nm -> name' nm
+        LetLoc nm -> ppRename nm
 
 sortClauses :: [Clause a] -> [Clause a]
 sortClauses = sortBy (comparing rank)

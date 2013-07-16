@@ -117,6 +117,20 @@ trDefn v e = do
         , fn_body    = body'
         }
 
+-- | Translating variables
+--
+-- Need to conflate worker and wrapper data constructors otherwise
+-- they might differ from case alternatives
+-- (example: created tuples in partition's where clause)
+-- It is unclear what disasters this might bring.
+trVar :: Var -> TM Binder
+trVar x = do
+    ty <- trType (varType x)
+    return . (::: ty) $ case idDetails x of
+        DataConWorkId dc -> dataConName dc
+        DataConWrapId dc -> dataConName dc
+        _                -> varName x
+
 -- | Translating expressions
 --
 -- GHC Core allows application of types to arbitrary expressions,
@@ -126,18 +140,7 @@ trDefn v e = do
 -- not immediately available in GHC Core, so this has to be reconstructed.
 trExpr :: CoreExpr -> TM (R.Expr Binder)
 trExpr e0 = case e0 of
-    C.Var x -> do
-        ty <- e0_type
-        let var nm = return (R.Var (nm ::: ty) [])
-        var $ case idDetails x of
-                DataConWorkId dc -> dataConName dc
-                DataConWrapId dc -> dataConName dc
-                _                -> varName x
-        -- Need to conflate worker and wrapper data constructors otherwise
-        -- they might differ from case alternatives
-        -- (example: created tuples in partition's where clause)
-        -- It is unclear what disasters this might bring.
-
+    C.Var x -> (`R.Var` []) <$> trVar x
     C.Lit MachStr{} -> String <$> star e0_ty_con
     C.Lit l -> R.Lit <$> trLit l <*> star e0_ty_con
 
@@ -213,9 +216,8 @@ trExpr e0 = case e0 of
     -- TODO:
     --     Do we need to do something about newtype casts?
   where
-    e0_type = trType (C.exprType e0)
-    e0_ty_con   = do
-        t <- e0_type
+    e0_ty_con = do
+        t <- trType (C.exprType e0)
         case t of
             TyCon x [] -> return x
             _          -> fail "Literal is not of a type constructor type!"

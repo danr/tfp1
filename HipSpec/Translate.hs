@@ -80,7 +80,7 @@ trBinds am0 binds = (am',concat subthyss)
 --   subtheory
 trBind :: ArityMap -> Var -> CoreExpr -> (ArityMap,[Subtheory])
 trBind am v e = case trDefn v e of
-    Right fn -> (new_arities,subthys)
+    Right fn -> trSimpFuns am simp_fns
       where
         fn' :: R.Function (Typed Name)
         fn' = simpFun fn
@@ -88,28 +88,32 @@ trBind am v e = case trDefn v e of
         simp_fns :: [S.Function (Typed (Rename Name))]
         simp_fns = uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ fn'
 
-        fo_fns :: [FO.Function (Rename Name)]
-        fo_fns = map stfFun simp_fns
-
-        new_arities :: ArityMap
-        new_arities = M.fromList
-            [ (fn_name,length fn_args) | FO.Function{..} <- fo_fns ]
-
-        fo_fns_zapped :: [FO.Function (Rename Name)]
-        fo_fns_zapped = mapM zapFn fo_fns (`M.lookup` am)
-
-        subthys = concat
-            [ [ calcDeps subtheory
-                { defines = Definition fn_name
-                , clauses = fn_cls
-                }
-              , calcDeps subtheory
-                { defines = Pointer fn_name
-                , clauses = ptr_cls
-                }
-              ]
-            | f@FO.Function{..} <- fo_fns_zapped
-            , let (fn_cls,ptr_cls) = P.trFun f
-            ]
     Left err -> error $ "trBind: " ++ show err
 
+-- | Translates a bunch of simple functions into subtheories
+trSimpFuns :: ArityMap -> [S.Function (Typed (Rename Name))] -> (ArityMap,[Subtheory])
+trSimpFuns am simp_fns = (new_arities,subthys)
+  where
+    fo_fns :: [FO.Function (Rename Name)]
+    fo_fns = map stfFun simp_fns
+
+    new_arities :: ArityMap
+    new_arities = M.fromList
+        [ (fn_name,length fn_args) | FO.Function{..} <- fo_fns ]
+
+    fo_fns_zapped :: [FO.Function (Rename Name)]
+    fo_fns_zapped = mapM zapFn fo_fns (`M.lookup` am)
+
+    subthys = concat
+        [ [ calcDeps subtheory
+            { defines = Definition fn_name
+            , clauses = fn_cls
+            }
+          , calcDeps subtheory
+            { defines = Pointer fn_name
+            , clauses = ptr_cls
+            }
+          ]
+        | f@FO.Function{..} <- fo_fns_zapped
+        , let (fn_cls,ptr_cls) = P.trFun f
+        ]

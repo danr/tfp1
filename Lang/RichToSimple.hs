@@ -41,15 +41,18 @@ instance HasScope v (Env v) where
     mod_scope f (Env (s,a)) = Env (mod_scope f s,a)
 
 type RTS v = RWS
-    (Env (Var v))      -- variables in scope
+    (Env (Var v))        -- variables in scope
     [S.Function (Var v)] -- emitted lifted functions
     Int                  -- name supply
 
 emit :: S.Function (Var v) -> RTS v ()
 emit = tell . (:[])
 
-runRTS :: RTS v a -> (a,[S.Function (Var v)])
-runRTS m = evalRWS m (Env (emptyScope,[])) 0
+runRTS :: Ord v => RTS v a -> (a,[S.Function (Var v)])
+runRTS = runRTSWithScope []
+
+runRTSWithScope :: Ord v => [Var v] -> RTS v a -> (a,[S.Function (Var v)])
+runRTSWithScope sc m = evalRWS m (Env (makeScope sc,[])) 0
 
 getLocs :: forall v . RTS v [Loc (Rename v)]
 getLocs = do

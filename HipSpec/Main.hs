@@ -7,9 +7,9 @@ import HipSpec.Translate
 import HipSpec.Read
 import HipSpec.Calls
 import HipSpec.ParseDSL
+import HipSpec.Property
 
 import Lang.Unfoldings
-import Lang.Utils
 import Lang.Escape
 import Lang.FreeTyCons
 
@@ -38,7 +38,7 @@ main = do
 
         (am,data_thy) = trTyCons tcs
 
-        (_amf,binds_thy) = trBinds am binds
+        (amf,binds_thy) = trBinds am binds
 
         thy = appThy : data_thy ++ binds_thy
 
@@ -47,4 +47,13 @@ main = do
         pp_alt_ergo = render . vcat . map (ppClause (text . escape . polyname))
 
     putStrLn (pp_alt_ergo cls)
+
+    case trProperties amf [ (v,unfolding v) | v <- prop_vars ] of
+        Left err -> error (show err)
+        Right (_amf',ps,ss) -> do
+            putStrLn "\nProperty subtheories:"
+            putStrLn (pp_alt_ergo (sortClauses (concatMap clauses ss)))
+
+            putStrLn "\nProperties:"
+            mapM_ print ps
 
