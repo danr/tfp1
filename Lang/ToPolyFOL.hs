@@ -41,8 +41,6 @@ data Poly v
     -- ^ Constructor projection on the i:th coordinate
     | QVar Int
     -- ^ Local quantified variable number i
-    | Sk Int
-    -- ^ Skolemised variable, not used here but in general handy to have
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 data Env v = Env

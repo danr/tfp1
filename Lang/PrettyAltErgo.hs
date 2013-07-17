@@ -37,8 +37,8 @@ ppClause p cls = case cls of
 
 ppClType :: ClType -> Doc
 ppClType cl = case cl of
-    Axiom      -> "axiom"
-    Conjecture -> "goal"
+    Axiom -> "axiom"
+    Goal  -> "goal"
 
 ppTySig :: Id a -> a -> [Type a] -> Type a -> Doc
 ppTySig p x args res
@@ -54,7 +54,7 @@ ppType p = go
     go t0 = case t0 of
         TyCon tc ts -> commasepP (map go ts) <+> p tc
         TyVar x     -> prime (p x)
-        Type        -> error "PrettyAltErgo.ppType: Type"
+        TType       -> error "PrettyAltErgo.ppType: TType"
 
 ppForm :: Id a -> Formula a -> Doc
 ppForm p f0 = case f0 of

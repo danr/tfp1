@@ -21,6 +21,8 @@ module Lang.Simple
     , injectFn
     , injectBody
     , injectExpr
+    , (//)
+    , substMany
     ) where
 
 import Data.Foldable (Foldable)
@@ -85,6 +87,17 @@ exprTySubst x t = ex_ty $ \ t0 -> case t0 of
   where
     ex_ty :: (Type a -> Type a) -> Expr (Typed a) -> Expr (Typed a)
     ex_ty = $(genTransformBi 'ex_ty)
+
+(//) :: Eq a => Expr a -> a -> Expr a -> Expr a
+e // x = tr_expr $ \ e0 -> case e0 of
+    Var y [] | x == y -> e
+    _                 -> e0
+  where
+    tr_expr :: (Expr a -> Expr a) -> Expr a -> Expr a
+    tr_expr = $(genTransformBi 'tr_expr)
+
+substMany :: Eq a => [(a,Expr a)] -> Expr a -> Expr a
+substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 
 -- * Injectors to the Rich language (for pretty-printing, linting)
 

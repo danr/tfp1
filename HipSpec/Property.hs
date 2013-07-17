@@ -6,6 +6,7 @@ module HipSpec.Property
     , Property(..)
     , trProperty
     , trProperties
+    , tvSkolemProp
     ) where
 
 import Control.Monad.Error
@@ -20,12 +21,16 @@ import Text.PrettyPrint hiding (comma)
 
 import HipSpec.ParseDSL
 import HipSpec.Theory
-import HipSpec.Pretty
 
 import TysWiredIn (trueDataCon,boolTyConName)
 import DataCon (dataConName)
 
 import Data.List (intercalate)
+
+import qualified Lang.PolyFOL as P
+import qualified Lang.ToPolyFOL as P
+
+{-# ANN module "HLint: ignore Use camelCase" #-}
 
 data Literal = S.Expr TypedName' :=: S.Expr TypedName'
 
@@ -113,7 +118,7 @@ parseProperty e = case collectArgs e of
         | isProveBool x, [l]   <- args -> return ([],l :=: true)
         | isGivenBool x, [l,q] <- args -> do
             (as,gl) <- parseProperty q
-            return (((l :=: true):as),gl)
+            return (l :=: true:as,gl)
         | isGiven x,     [p,q] <- args -> do
             (nested_as,a) <- parseProperty p
             unless (null nested_as) (throwError (NestedAssumptions e))
@@ -121,5 +126,34 @@ parseProperty e = case collectArgs e of
             return (a:as,gl)
     _ -> throwError (CannotParse e)
   where
-    true = Var (Old (dataConName (trueDataCon)) ::: TyCon (Old boolTyConName) []) []
+    true = Var (Old (dataConName trueDataCon) ::: TyCon (Old boolTyConName) []) []
+
+-- | Removes the type variables in a property, returns clauses defining the
+--   sorts and content to ignore
+tvSkolemProp :: Property -> (Property,[P.Clause LogicId],[Content])
+tvSkolemProp p@Property{..} =
+    ( p
+        { prop_tvs  = []
+        , prop_vars = [ v ::: ty_subst t | v ::: t <- prop_vars ]
+        , prop_goal = sk_lit prop_goal
+        , prop_assums = map sk_lit prop_assums
+        }
+    , sorts
+    , ignore
+    )
+  where
+    tvs = [ (tv,S.New [S.LetLoc tv] i) | (tv,i) <- zip prop_tvs [0..] ]
+
+    (expr_substs,ty_substs) = unzip
+        [ (exprTySubst tv tc,tc /// tv)
+        | (tv,tv') <- tvs
+        , let tc = S.TyCon tv' []
+        ]
+
+    sorts      = [ P.SortSig (P.Id tv') 0 | (_,tv') <- tvs       ]
+    ignore     = [ Type tv'               | (_,S.Old tv') <- tvs ]
+
+    expr_subst = foldr (.) id expr_substs
+    ty_subst   = foldr (.) id ty_substs
+    sk_lit     = mapLiteral expr_subst
 

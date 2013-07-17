@@ -1,9 +1,10 @@
-{-# LANGUAGE RecordWildCards,ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 module HipSpec.Translate where
 
 import HipSpec.Theory
 
 import qualified Lang.Rich as R
+import Lang.Rich (Datatype(..),Constructor(..))
 
 import Lang.CoreToRich
 import Lang.SimplifyRich
@@ -20,14 +21,16 @@ import qualified Lang.ToPolyFOL as P
 import qualified Lang.PolyFOL as P
 
 import Name
-import CoreSyn
+import CoreSyn (CoreExpr)
 
 import qualified Data.Map as M
 import qualified Data.Set as S
 
 import Var
 
-import TyCon
+import TyCon (TyCon)
+
+import Induction.Structural
 
 appThy :: Subtheory
 appThy = Subtheory
@@ -36,21 +39,28 @@ appThy = Subtheory
     , deps    = S.empty
     }
 
+-- | The type environment for induction.
+--   Constructors are typed, to know which types has been applied to them
+--   We also need to know the full type of the constructor to be able to put it
+--   in typed expressions
+type Con    = (Typed Name',[Type Name'])
+type TyEnv' = TyEnv Con (Type Name')
+
 -- | Translates the type constructors
-trTyCons :: [TyCon] -> (ArityMap,[Subtheory])
+trTyCons :: [TyCon] -> (ArityMap,[Subtheory],TyEnv')
 trTyCons tcs = case mapM trTyCon tcs of
-    Right data_types -> (con_arities,subthys)
+    Right data_types -> (con_arities,subthys,ty_env)
       where
         subthys = concat
-            [ [ calcDeps subtheory
-                { defines = Datatype data_ty_con
+            [ calcDeps subtheory
+                { defines = Type data_ty_con
                 , clauses = cls
                 }
-              ] ++ (concat
+              : concat
               [ [ Subtheory
                   { defines = Definition dc
                   , clauses = []
-                  , deps    = S.singleton (Datatype data_ty_con)
+                  , deps    = S.singleton (Type data_ty_con)
                   }
                 , calcDeps subtheory
                   { defines = Pointer dc
@@ -58,16 +68,47 @@ trTyCons tcs = case mapM trTyCon tcs of
                   }
                 ]
               | (dc,dc_ptr_cls) <- dc_ptr_clss
-              ])
-            | dt@R.Datatype{..} <- data_types
+              ]
+            | dt@Datatype{..} <- data_types
             , let (cls,dc_ptr_clss) = P.trDatatype (fmap Old dt)
             ]
 
         con_arities = M.fromList
             [ (Old (R.con_name dc),length (R.con_args dc))
             | dt <- data_types
-            , dc <- R.data_cons dt
+            , dc <- data_cons dt
             ]
+
+        m_tcs = M.fromList
+            [ (data_ty_con,dt)
+            | dt@Datatype{..} <- map (fmap Old) data_types
+            ]
+
+        ty_env :: TyEnv'
+        ty_env t0 = do
+            TyCon tc tc_args <- return t0
+            let same_ty_con t = case t of
+                    TyCon tc' _ -> tc' == tc
+                    _           -> False
+            Datatype{..} <- M.lookup tc m_tcs
+            return
+                [ ( ( con_name :::
+                        makeForalls data_tvs
+                            (makeArrows con_args (TyCon data_ty_con (map TyVar data_tvs)))
+                    , con_args'
+                    )
+                  , [ case collectArrTy t of
+                        (ts,r) | same_ty_con r -> case ts of
+                            [] -> Rec r
+                            _  -> Exp r ts
+                        _                      -> NonRec t
+                    | t <- con_args'
+                    ]
+                  )
+                | Constructor{..} <- data_cons
+                , let con_args' = map (substManyTys (zip data_tvs tc_args)) con_args
+                ]
+
     Left err -> error $ "trTyCons: " ++ show err
 
 

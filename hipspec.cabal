@@ -31,6 +31,9 @@ executable tfp1
         mtl          == 2.1.*,
         pretty       >= 1.1,
         geniplate    >= 0.6,
-        process      >= 1.1
+        process      >= 1.1,
+        structural-induction == 0.1,
+        stm-promise  == 0.0.2,
+        split
 
 

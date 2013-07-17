@@ -74,14 +74,15 @@ data ClType
     = Axiom
     -- ^ Axioms, or definitions, or hypothesis or negated conjectures
     --   Is it important to distinguish between these?
-    | Conjecture
+    | Goal
     -- ^ Conjecture
   deriving (Eq,Ord,Show)
 
 data Type a
     = TyCon a [Type a]
     | TyVar a
-    | Type
+    | TType
+    -- ^ The type of types
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Term operations
