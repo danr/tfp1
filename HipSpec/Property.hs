@@ -7,6 +7,7 @@ module HipSpec.Property
     , trProperty
     , trProperties
     , tvSkolemProp
+    , etaExpandProp
     ) where
 
 import Control.Monad.Error
@@ -101,15 +102,23 @@ trProperty (S.Function (p ::: t) args b) = case b of
 
         (assums,goal) <- parseProperty e
 
-        return Property
+        let err = error "trProperty: initalize fields with initFields"
+
+        return $ initFields Property
             { prop_name     = ppRename p
             , prop_tvs      = tvs
             , prop_vars     = args
             , prop_goal     = goal
             , prop_assums   = assums
-            , prop_repr     = intercalate " => " (map show (assums ++ [goal]))
-            , prop_var_repr = map (ppRename . S.forget_type) args
+            , prop_repr     = err
+            , prop_var_repr = err
             }
+
+initFields :: Property -> Property
+initFields p@Property{..} = p
+    { prop_repr     = intercalate " => " (map show (prop_assums ++ [prop_goal]))
+    , prop_var_repr = map (ppRename . S.forget_type) prop_vars
+    }
 
 parseProperty :: S.Expr (S.Var Name) -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
@@ -156,4 +165,22 @@ tvSkolemProp p@Property{..} =
     expr_subst = foldr (.) id expr_substs
     ty_subst   = foldr (.) id ty_substs
     sk_lit     = mapLiteral expr_subst
+
+-- | Eta-expands a property, if possible
+etaExpandProp :: Property -> Property
+etaExpandProp p@Property{..}
+    | e :=: _ <- prop_goal
+    , (ts,_res_ty) <- collectArrTy (S.exprType e)
+    , not (null ts) =
+        let new_vars  = [ New [LamLoc] i ::: t | (t,i) <- zip ts [0..] ]
+            new_exprs = [ Var x [] | x <- new_vars ]
+        in  initFields p
+                { prop_vars = prop_vars ++ new_vars
+                , prop_goal = mapLiteral (`S.apply` new_exprs) prop_goal
+                }
+
+etaExpandProp p = p
+
+
+
 

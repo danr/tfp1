@@ -100,10 +100,12 @@ main = do
     case trProperties props of
         Right props' -> forM_ props' $ \ prop -> do
             print prop
-            let obs = [plain am_fin prop]
-                    : catMaybes [ induction ty_env am_fin prop [coord1,coord2]
-                                | (_,coord1) <- zip (prop_vars prop) [0..]
-                                , (_,coord2) <- zip (prop_vars prop) [0..]
+            let prop' = etaExpandProp prop
+            print prop'
+            let obs = [plain am_fin prop']
+                    : catMaybes [ induction ty_env am_fin prop' [coord1,coord2]
+                                | (_,coord1) <- zip (prop_vars prop') [0..]
+                                , (_,coord2) <- zip (prop_vars prop') [0..]
                                 ]
             mapM_ (mapM_ try_oblig) obs
         Left err -> print err

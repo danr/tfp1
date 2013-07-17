@@ -3,11 +3,11 @@ module Properties where
 import HipSpec.Prelude
 import Prelude hiding (zipWith,curry,map,zip)
 
-prop_compose f g h x = (f . (g . h)) x =:= ((f . g) . h) x
+prop_compose f g h = f . (g . h) =:= (f . g) . h
 
-prop_let f x =
-    (let twice g = f . g in twice (twice f)) x
-    =:= (dbl (dbl f)) x
+prop_let f =
+    let twice g = f . g in twice (twice f)
+    =:= dbl (dbl f)
   where
     dbl g = g . f
 
@@ -25,8 +25,7 @@ zipWith z (a:as) (b:bs)
 zipWith _ _ _    =  []
 
 map :: (a -> b) -> [a] -> [b]
-map f []     = []
-map f (x:xs) = f x : map f xs
+map f xs = [ f x | x <- xs ]
 
 curry       :: ((a, b) -> c) -> a -> b -> c
 curry f x y =  f (x, y)
@@ -39,3 +38,4 @@ prop_zw_map f xs ys = zipWith (curry f) xs ys =:= map f (zip xs ys)
 
 prop_const :: a -> [b] -> Prop [a]
 prop_const x xs = map (\ _ -> x) xs =:= zipWith (\ _ _ -> x) xs xs
+
